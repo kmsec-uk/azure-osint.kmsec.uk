@@ -12,17 +12,18 @@ With this tool, you can get a high-level overview about an Azure Tenant:
 * Tenant brand name
 
 This tool does not do anything AAD Internals' OSINT page already does. In fact,
-it does less. It will not provide additional enrichment on associated domains,
+it does *less*. It will not provide additional enrichment on associated domains,
 for example.
 
-Because it does less, it's faster. Requesting microsoft.com will take roughly
+Because it does less, it's faster! Requesting `microsoft.com` will take roughly
 half the time (if not less!) with aad.kmtest.workers.dev compared to AAD
 Internals' OSINT page (at the time of testing, 2.6s vs 5.4s).
 
 Benefits over AAD Internals' OSINT page:
 
 * Faster
-* Shareable pages (You can share a domain report like this: `https://azure-osint.kmsec.uk/?domain=contoso.org`)
+* Shareable reports (You can share a domain report like this:
+  `https://azure-osint.kmsec.uk/?domain=contoso.org`)
 * API can be accessed from any origin
 
 ## Try it out!
