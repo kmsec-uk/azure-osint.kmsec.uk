@@ -1,13 +1,19 @@
+import { picoCSS, homeHTML, favicon } from "./html";
 const tenantIdRegex = /\.com\/(?<tenant_id>.*)\/oauth/;
 const domainsRegex = /<Domain>([a-zA-Z0-9\-\.]*)<\/Domain>/g;
 
-class AADInfo {
+export type ResponseError = {
+    domain: string,
+    error: string
+}
+export class AADInfo {
     domain: string;
     brand: string;
     tenant_id: string;
     region: string;
     domains: string[];
     soapBody: string;
+    headers: {}
 
     constructor(domain: string) {
         this.domain = domain;
@@ -32,102 +38,162 @@ class AADInfo {
         </GetFederationInformationRequestMessage>
     </soap:Body>
 </soap:Envelope>`;
+            this.headers = {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            };
     }
 
     toDict() {
         return {
-			domain: this.domain,
+            domain: this.domain,
             brand: this.brand,
             tenant_id: this.tenant_id,
             region: this.region,
             domains: this.domains
         };
     }
+    toError(errorMsg: string) {
+        return {
+            domain: this.domain,
+            error: errorMsg
+        }
+    }
 
-    async aadTenantInfo(): Promise<string> {
-        console.log(`Enriching ${this.domain}`);
+    async aadTenantInfo(): Promise<Response> {
+        // console.log(`Enriching ${this.domain}`);
+        const results = await Promise.allSettled([this.getTenantID(), this.getBrandInfo(), this.getAllDomains()])
 
+        const errors = results.filter(
+            (result): result is PromiseRejectedResult =>
+                result.status === 'rejected'
+        )
+        if (errors.length > 0) {
+            // console.log(errors.length)
+            return new Response(
+                JSON.stringify(this.toError(errors[0].reason.message)),
+                {
+                    status: 400,
+                    statusText: "Invalid request",
+                    headers: this.headers
+                })
+        }
+
+        return new Response(
+            JSON.stringify(this.toDict()),
+            {
+                status: 200,
+                statusText: "OK",
+                headers: this.headers
+            }
+        )
+    }
+
+    async getTenantID(): Promise<any> {
+        const oidResponse = await fetch(`https://login.microsoftonline.com/${this.domain}/.well-known/openid-configuration`);
+        // console.log(this.domain, "OID enrichment:", oidResponse.status);
+        if (!oidResponse.ok) {
+            throw new Error("invalid tenant")
+        }
+        const oidData: any = await oidResponse.json();
+        this.region = oidData.tenant_region_scope;
+        this.tenant_id = (oidData.token_endpoint.match(tenantIdRegex)?.groups || {}).tenant_id || "";
+
+        return true
+    }
+
+    async getAllDomains(): Promise<any> {
         const soapHeaders = {
             'Content-Type': 'text/xml; charset=utf-8',
             'User-Agent': 'AutodiscoverClient',
             'SOAPAction': '"http://schemas.microsoft.com/exchange/2010/Autodiscover/Autodiscover/GetFederationInformation"'
         };
-
-        try {
-            const oidResponse = await fetch(`https://login.microsoftonline.com/${this.domain}/.well-known/openid-configuration`);
-            console.log(this.domain, "OID enrichment:", oidResponse.status);
-            if (oidResponse.ok) {
-                const oidData: any = await oidResponse.json();
-                this.region = oidData.tenant_region_scope;
-                this.tenant_id = (oidData.token_endpoint.match(tenantIdRegex)?.groups || {}).tenant_id || "";
-            }
-
-            const autodiscoverResponse = await fetch('https://autodiscover-s.outlook.com/autodiscover/autodiscover.svc', {
-                method: 'POST',
-                body: this.soapBody,
-                headers: soapHeaders
-            });
-            console.log(this.domain, "Autodiscover enrichment:", autodiscoverResponse.status);
-            if (autodiscoverResponse.ok) {
-                const autodiscoverText = await autodiscoverResponse.text();
-                this.domains = [...autodiscoverText.matchAll(domainsRegex)].map(match => match[1]);
-            }
-
-            const brandResponse = await fetch(`https://login.microsoftonline.com/GetUserRealm.srf?login=nn@${this.domain}`);
-            console.log(this.domain, "Brand enrichment:", brandResponse.status);
-            if (brandResponse.ok) {
-                const brandData: any = await brandResponse.json();
-                this.brand = brandData.FederationBrandName;
-            }
-        } catch (e) {
-            console.error(e);
-            this.tenant_id = "error_enriching";
+        const autodiscoverResponse = await fetch('https://autodiscover-s.outlook.com/autodiscover/autodiscover.svc', {
+            method: 'POST',
+            body: this.soapBody,
+            headers: soapHeaders
+        });
+        // console.log(this.domain, "Autodiscover enrichment:", autodiscoverResponse.status);
+        if (!autodiscoverResponse.ok) {
+            throw new Error("autodiscover: could not get domains from Autodiscover")
         }
+        const autodiscoverText = await autodiscoverResponse.text();
 
-        return JSON.stringify(this.toDict());
+        this.domains = [...autodiscoverText.matchAll(domainsRegex)].map(match => match[1]);
+        // We should throw an error if no domains were identified.
+        if (this.domains.length === 0) {
+            throw new Error("invalid tenant")
+        }
+        return true
+    }
+
+    async getBrandInfo(): Promise<any> {
+        const brandResponse = await fetch(`https://login.microsoftonline.com/GetUserRealm.srf?login=nn@${this.domain}`);
+        // console.log(this.domain, "Brand enrichment:", brandResponse.status);
+        if (!brandResponse.ok) {
+            throw new Error("brand enrichment: failed to fetch brand info")
+        }
+        const brandData: any = await brandResponse.json();
+        if (brandData.NameSpaceType === "unknown") {
+            throw new Error("invalid tenant")
+        }
+        this.brand = brandData.FederationBrandName;
+        return true
     }
 }
 
-async function testHelpers() {
-    const aadInfo = await new AADInfo("lseg.com").aadTenantInfo();
-    console.log(JSON.stringify(aadInfo));
-}
-
 async function router(request: Request): Promise<Response> {
-	const recievedURL = new URL(request.url)
-	const receivedPath = recievedURL.pathname
-	const receivedParams = recievedURL.searchParams
-	switch (receivedPath) {
-		case '/' || '': 
-			return new Response("Welcome")
-		case '/api/' || '/api':
-			const domain = receivedParams.get('domain')
-			if (!domain) {
-				return new Response("You must provide a domain name", {
-					status: 400,
-					statusText: ""
-				})
-			}
-			const data = await new AADInfo(domain).aadTenantInfo()
+    const recievedURL = new URL(request.url)
+    const receivedPath = recievedURL.pathname
+    const receivedParams = recievedURL.searchParams
+    
+    if (request.method !== "GET") {
+        return new Response("Only GET requests are supported", { status: 400 })
+    }
+    switch (receivedPath) {
+        case '/' || '':
+            var domain = receivedParams.get('domain')
+            return new Response(homeHTML(recievedURL.host, domain), {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/html"
+                }
+            })
+        case '/picocss.min.css':
+            return new Response(picoCSS, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/css"
+                }
+            })
+        case '/favicon.png':
+            return new Response(favicon(), {
+                headers: {
+                    "Content-Type": "image/png"
+                }
+            })
+        case '/api/' || '/api':
+            var domain = receivedParams.get('domain')
+            if (!domain) {
+                return new Response("You must provide a domain name", {
+                    status: 400,
+                    headers: {
+                        "Content-Type": "text/plain"
+                    }
+                })
+            }
+            return await new AADInfo(domain).aadTenantInfo()
 
-			return new Response(data, {
-				headers: {
-					"content-type" : "text/json"
-				}
-			})
-
-		default:
-			return new Response(null, {
-				status: 404,
-				statusText: "Not found"
-			})
-		
-	}
+        default:
+            return new Response(null, {
+                status: 404,
+                statusText: "Not found"
+            })
+    }
 }
 
 export default {
-	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-		
-		return await router(request);
-	},
+    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+        return await router(request);
+    },
 };
