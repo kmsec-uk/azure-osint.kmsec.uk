@@ -202,6 +202,8 @@ export function homeHTML(host: string, domain: string | null) {
                     <sub>
                         From <a href="https://kmsec.uk">kmsec</a>.
                         <br>
+                        Source on <a href="https://github.com/kmsec-uk/azure-osint.kmsec.uk">Github</a>.
+                        <br>
                         Styled with <a href="https://picocss.com/">PicoCSS</a>.
                         <br>
                         Built with <a href="https://workers.cloudflare.com/">Cloudflare Workers</a>.
