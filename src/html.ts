@@ -49,7 +49,7 @@ export function homeHTML(host: string, domain: string | null) {
                 "brand": "Tenant Brand",
                 "region": "Tenant Region"
             }
-            return \`<h6 style="text-align: center; font-family:mono">\${prettytitles[title]}</h6>
+            return \`<h6 style="text-align: center; font-family: monospace">\${prettytitles[title]}</h6>
             <p style="text-align: center">\${content}</p>\`
           }
     
@@ -156,7 +156,7 @@ export function homeHTML(host: string, domain: string | null) {
                 <div class="grid">
                     <div id="domaincontainer"
                         style="display:none; padding:21px; border-style: solid; border-width: 1px; border-radius: 0.375rem; border-color: rgb(226 232 240)">
-                        <h6 style="text-align: left; font-family:mono;">Tenant domains <span id="count"></span></h6>
+                        <h6 style="text-align: left; font-family: monospace;">Tenant domains <span id="count"></span></h6>
                         <ol id="domainsresults" style="list-style-type: '- ';">
                         </ol>
                     </div>
@@ -164,7 +164,7 @@ export function homeHTML(host: string, domain: string | null) {
                         style="display:none; border-style: solid; border-width: 1px; border-radius: 0.375rem; border-color: rgb(226 232 240); padding:21px">
                         <details>
                             <summary>
-                                <h6 style="color:#0172AC; text-align: center; font-family:mono; display:inline">View the raw API
+                                <h6 style="color:#0172AC; text-align: center; font-family: monospace; display:inline">View the raw API
                                     response</h6>
                             </summary>
                             <pre><code id="raw"></code></pre>
@@ -184,8 +184,8 @@ export function homeHTML(host: string, domain: string | null) {
                     <h4>About this site</h4>
                 </header>
                 <p>This was built to provide a quicker and less verbose public API for Azure OSINT.</p>
-                <p>All information on how this works can be viewed on the Github repository, however all functionality is
-                    re-implemented from AADInternals so you're better off visiting AAD Internals, or viewing the enumeration
+                <p>All information on how this works behind the scenes can be viewed on the <a href="https://github.com/kmsec-uk/azure-osint.kmsec.uk">Github repository</a>, however all functionality is
+                    re-implemented from AADInternals so you're better off visiting <a href="https://aadinternals.com/osint/">AAD Internals's OSINT page</a> or viewing the enumeration
                     functions predominately found in
                     <code><a href="https://github.com/Gerenios/AADInternals/blob/master/AccessToken_utils.ps1">AccessToken_utils.ps1</a></code>
                     within AADInternals Suite.</p>

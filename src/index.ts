@@ -163,7 +163,8 @@ async function router(request: Request): Promise<Response> {
             return new Response(picoCSS, {
                 status: 200,
                 headers: {
-                    "Content-Type": "text/css"
+                    "Content-Type": "text/css",
+                    "Cache-Control" : "max-age=31536000, public"
                 }
             })
         case '/favicon.png':
