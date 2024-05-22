@@ -1,5 +1,3 @@
-import { AADInfo } from ".";
-
 /**
  * Converts a base64 string to an ArrayBuffer.
  * 
@@ -51,6 +49,7 @@ export function homeHTML(host: string, domain: string | null): string {
         <meta property="og:description" content="Azure OSINT - get Azure Tenant information for a domain">
     </head>
     <script>
+
         function formatContainer(title, content) {
             prettytitles = {
                 "domain": "Requested Domain",
@@ -82,12 +81,18 @@ export function homeHTML(host: string, domain: string | null): string {
             list.innerHTML = ""
     
             const rawcontainer = document.querySelector("#rawcontainer")
+
+
+
             // build the request
             const baseUrl = window.location.origin + '/api/'
             const formData = new FormData(form);
             params = new URLSearchParams(formData).toString()
-            requestUrl = (baseUrl + "?" + params)
-    
+            const requestUrl = (baseUrl + "?" + params)
+            
+            // UX: Update the URL to reflect input
+            window.history.replaceState(null, "", \`/?domain=\${formData.get("domain")}\`)
+
             // retrieve the results
             response = await fetch(requestUrl)
     
