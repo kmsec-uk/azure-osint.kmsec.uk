@@ -1,3 +1,4 @@
+import { ExecutionContext } from "@cloudflare/workers-types/experimental";
 import { picoCSS, homeHTML, favicon } from "./html";
 const tenantIdRegex = /\.com\/(?<tenant_id>.*)\/oauth/;
 const domainsRegex = /<Domain>([a-zA-Z0-9\-\.]*)<\/Domain>/g;
@@ -147,7 +148,7 @@ export class AADInfo {
     }
 }
 
-async function router(request: Request): Promise<Response> {
+async function router(request: Request, ctx: ExecutionContext): Promise<Response> {
     const recievedURL = new URL(request.url)
     const receivedPath = recievedURL.pathname
     const receivedParams = recievedURL.searchParams
@@ -188,7 +189,20 @@ async function router(request: Request): Promise<Response> {
                     }
                 })
             }
-            return await new AADInfo(domain).aadTenantInfo()
+            // Try cache response, the cache key is the domain
+            const cache = caches.default;
+
+            let response = await cache.match(request.url.toLowerCase())
+            
+            if (!response) {
+                
+                response = await new AADInfo(domain).aadTenantInfo()
+
+                ctx.waitUntil(cache.put(request.url.toLowerCase(), response.clone()))
+            } else {
+                response.headers.append("X-Cache-Hit", "true")
+            }
+            return response
         case '/robots.txt':
             return new Response(permissiveRobots, {
                 status: 200,
@@ -206,6 +220,6 @@ async function router(request: Request): Promise<Response> {
 
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-        return await router(request);
+        return await router(request, ctx);
     },
 };
