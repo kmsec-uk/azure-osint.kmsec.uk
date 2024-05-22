@@ -2,6 +2,11 @@ import { picoCSS, homeHTML, favicon } from "./html";
 const tenantIdRegex = /\.com\/(?<tenant_id>.*)\/oauth/;
 const domainsRegex = /<Domain>([a-zA-Z0-9\-\.]*)<\/Domain>/g;
 
+const permissiveRobots = `User-agent: *
+Allow: /
+Disallow:
+`
+
 export type ResponseError = {
     domain: string,
     error: string
@@ -184,7 +189,13 @@ async function router(request: Request): Promise<Response> {
                 })
             }
             return await new AADInfo(domain).aadTenantInfo()
-
+        case '/robots.txt':
+            return new Response(permissiveRobots, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/plain"
+                }
+            })
         default:
             return new Response(null, {
                 status: 404,
