@@ -1,4 +1,4 @@
-
+import { AADInfo } from ".";
 
 /**
  * Converts a base64 string to an ArrayBuffer.
@@ -17,14 +17,23 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 
     return bytes.buffer; // Return the ArrayBuffer
 }
-
+/**
+ * We store the favicon as Base64 content to be decoded at runtime
+ * @returns ArrayBuffer of Favicon file
+ */
 export function favicon(): ArrayBuffer {
     const b64Favicon = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAABHxJREFUWEe9l39Ionccxz/ePNaCeSzOi4iN7I6zLg4OaqWdlTHSnSUtqahQcrY/ojLOQY5+rCSi9lCrQ6zGqFb9YaWVFEUmW3H0Q29Os220ZWu6HVKEHNvVboK3HI/smuWP53HD+/4lfN7f9+f1/TxfP5/nIUDoRWcwGPVkMjkxNjb2ColEetXtdp86nc4/jo6OjpxO50OTyfQpADzD8AkaJgSKREVFMfPy8jr4fP7t0tJSUrDdNpsN+vr6fjIajesGg+H9/wLhB5CRkTHM5/Pz6+rqYvEaOhwOkEgkJrVa/QEAWPDuQ3XnAHJycmZ7enqK0tLSwvE409bW1loHBgZEALCB1+AMAD25QqEQBUv+9ATgmcsDxFcIcOV1gMvEwCmqqqp2RkZGWADgwAPhBUCfeXd392SgstsdAHt2D1y6RIDoKIDnfwH89hQg7hrAresA0a/5p2Gz2Ss6ne4d3ABcLnd9fn7+7sUN31kBnvwOkHID4Oob/0ZPTwH2fgH4+THAvWz/NAsLC3/W19cLbTabCgsCrQB9ampKG+y2ezwAhID/ldDWHA7n4dLSEhMTgMFgTKytrZVhCcONt7e3P25ra7sDAE9C7SUUFRU9mp2dTQ83AZZ+a2sLeDxemd1unwoJUF1d/ePg4CAVyzDcuMvlguzs7AdGo1ESEkAqldoQBEkINwEefWZm5rher68MCSCRSPZ7e3sT8RiGq6HT6cMGgwHtjkEXQSAQfDs+Pn47XHMs/cHBAXA4nCaLxdIVEoDNZn+p1WpxNQ2spL5xjUZzwuPxcgDAHBIgNTX1Y7Va3U6hUMLxx9QKhcLvx8bGMCuLtphosVi8LZfLb2C64hQcHx8Dm83GvIConbfH0Wi0L6anp4Xx8fE4U4SWicXiPYVCQcNqQmcA6I+SkpJvVCpV6v8lWFlZeS6VSjtNJlMbHi/fLn+npqZmqr+//yaejYE0Ozs7IBAIls1m87t4PS6Ombsikejz4eHhW3gNXujQkzc0NHxlNptXAWAaAPbxeASac/EsFmtcLBbTCwoKAkz787bohWtqatrT6/UT/5T9OgAUA4CGRCLF5Obm0re3t3+w2+1fB7oTQQcthUIpTUpKqqHRaIlcLvfN5ORk9MXFmx1tMgaD4WRubs5utVrNer0e7fe+U+/m6upqtNPpXE5JSbl2eHjoamlpWdzc3PwQAH71PQKeSR+TkJCQRyaTaUQiMcbj8bhdLte+xWJZDtFk3lYqlRPl5eVoNbxrd3cXGhsbJzUazUe+EHgA8DzKc5r09PSq0dHRIbRqvguFaG5uVs3MzDS8gIgIQFxcHEupVC4wmczLF+lRiNbW1hmVSuV9HBEBAIAYBoMxNDQ09B6VSvXLgULIZDLN5OTk/UgBoAd/q7CwsAtBkPJAEDqdDhAE+SSSAF6I4uLino6OjhIq1f+lC0GQR5EG8EKUlZU9kMlkRRchOjs7DS8DwAtRWVn5WUVFxT0WC/1oAlhcXAS5XN71sgC8EPn5+fezsrIy3W63e2NjY12r1Tb+Davdnqn9HZgvAAAAAElFTkSuQmCC'
 
     return base64ToArrayBuffer(b64Favicon);
 }
-
-export function homeHTML(host: string, domain: string | null) {
+/**
+ * Returns the index HTML
+ * 
+ * @param host - The hostname received in the request
+ * @param domain - A domain to be submitted
+ * @returns - Home HTML in string format.
+ */
+export function homeHTML(host: string, domain: string | null): string {
     return `<!DOCTYPE html>
     <html lang="en">
     
@@ -139,7 +148,7 @@ export function homeHTML(host: string, domain: string | null) {
                 <p>Submit a domain</p>
                 <form id="osint" method="get" action="/api/" onsubmit="return submitForm(this)">
                     <fieldset role="group">
-                        <input id="submitdomain" name="domain" ${domain ? "value=" + domain : "" } type="text" placeholder="contoso.org" />
+                        <input id="submitdomain" name="domain" ${domain ? "value=" + domain : "" } type="text" placeholder="contoso.org" autofocus/>
                         <button id="submitbutton" type="submit">Submit</button>
                     </fieldset>
                 </form>
@@ -175,7 +184,7 @@ export function homeHTML(host: string, domain: string | null) {
                     <h4>Use this API</h4>
                     <p>The API endpoint is at <code>/api/</code>, all you need to provide is a <code>domain</code> parameter
                     </p>
-                    <p>A fully constructed URL would look like this
+                    <p>A fully constructed URL would look like this:
                         <code>https://${host}/api/?domain=${domain ? "<span id=\"exampledomain\">" + domain + "</span>" : "<span id=\"exampledomain\">contoso.org</span>" }</code></p>
                 </footer>
             </article>
