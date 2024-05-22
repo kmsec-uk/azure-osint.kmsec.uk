@@ -189,18 +189,16 @@ async function router(request: Request, ctx: ExecutionContext): Promise<Response
                     }
                 })
             }
-            // Try cache response, the cache key is the domain
+            // Try cache response, the cache key is the URL.
             const cache = caches.default;
 
             let response = await cache.match(request.url.toLowerCase())
             
             if (!response) {
-                
+
                 response = await new AADInfo(domain).aadTenantInfo()
 
                 ctx.waitUntil(cache.put(request.url.toLowerCase(), response.clone()))
-            } else {
-                response.headers.append("X-Cache-Hit", "true")
             }
             return response
         case '/robots.txt':
