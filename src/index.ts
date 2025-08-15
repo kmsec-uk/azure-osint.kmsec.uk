@@ -1,33 +1,35 @@
-import { ExecutionContext } from "@cloudflare/workers-types/experimental";
-import { picoCSS, homeHTML, favicon } from "./html";
+import { ExecutionContext } from '@cloudflare/workers-types/experimental';
+import { homeHTML, favicon } from './html';
+// @ts-expect-error - importing as text is a Cloudflare Workers feature
+import picoMin from './pico.min.txt'
 const tenantIdRegex = /\.com\/(?<tenant_id>.*)\/oauth/;
 const domainsRegex = /<Domain>([a-zA-Z0-9\-\.]*)<\/Domain>/g;
 
 const permissiveRobots = `User-agent: *
 Allow: /
 Disallow:
-`
+`;
 
 export type ResponseError = {
-    domain: string,
-    error: string
-}
+	domain: string;
+	error: string;
+};
 export class AADInfo {
-    domain: string;
-    brand: string;
-    tenant_id: string;
-    region: string;
-    domains: string[];
-    soapBody: string;
-    headers: {}
+	domain: string;
+	brand: string;
+	tenant_id: string;
+	region: string;
+	domains: string[];
+	soapBody: string;
+	headers: {};
 
-    constructor(domain: string) {
-        this.domain = domain;
-        this.brand = "";
-        this.tenant_id = "";
-        this.region = "";
-        this.domains = [];
-        this.soapBody = `<?xml version="1.0" encoding="utf-8"?>
+	constructor(domain: string) {
+		this.domain = domain;
+		this.brand = '';
+		this.tenant_id = '';
+		this.region = '';
+		this.domains = [];
+		this.soapBody = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:exm="http://schemas.microsoft.com/exchange/services/2006/messages" xmlns:ext="http://schemas.microsoft.com/exchange/services/2006/types" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
     <soap:Header>
         <a:Action soap:mustUnderstand="1">http://schemas.microsoft.com/exchange/2010/Autodiscover/Autodiscover/GetFederationInformation</a:Action>
@@ -44,180 +46,176 @@ export class AADInfo {
         </GetFederationInformationRequestMessage>
     </soap:Body>
 </soap:Envelope>`;
-            this.headers = {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            };
-    }
+		this.headers = {
+			'Content-Type': 'application/json',
+			'Access-Control-Allow-Origin': '*',
+		};
+	}
 
-    toDict() {
-        return {
-            domain: this.domain,
-            brand: this.brand,
-            tenant_id: this.tenant_id,
-            region: this.region,
-            domains: this.domains
-        };
-    }
-    toError(errorMsg: string) {
-        return {
-            domain: this.domain,
-            error: errorMsg
-        }
-    }
+	toDict() {
+		return {
+			domain: this.domain,
+			brand: this.brand,
+			tenant_id: this.tenant_id,
+			region: this.region,
+			domains: this.domains,
+		};
+	}
+	toError(errorMsg: string) {
+		return {
+			domain: this.domain,
+			error: errorMsg,
+		};
+	}
 
-    async aadTenantInfo(): Promise<Response> {
-        // console.log(`Enriching ${this.domain}`);
-        const results = await Promise.allSettled([this.getTenantID(), this.getBrandInfo(), this.getAllDomains()])
+	async aadTenantInfo(): Promise<Response> {
+		// console.log(`Enriching ${this.domain}`);
+		const results = await Promise.allSettled([this.getTenantID(), this.getBrandInfo(), this.getAllDomains()]);
 
-        const errors = results.filter(
-            (result): result is PromiseRejectedResult =>
-                result.status === 'rejected'
-        )
-        if (errors.length > 0) {
-            // console.log(errors.length)
-            return new Response(
-                JSON.stringify(this.toError(errors[0].reason.message)),
-                {
-                    status: 400,
-                    statusText: "Invalid request",
-                    headers: this.headers
-                })
-        }
+		const errors = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+		if (errors.length > 0) {
+			// console.log(errors.length)
+			return new Response(JSON.stringify(this.toError(errors[0].reason.message)), {
+				status: 400,
+				statusText: 'Invalid request',
+				headers: this.headers,
+			});
+		}
 
-        return new Response(
-            JSON.stringify(this.toDict()),
-            {
-                status: 200,
-                statusText: "OK",
-                headers: this.headers
-            }
-        )
-    }
+		return new Response(JSON.stringify(this.toDict()), {
+			status: 200,
+			statusText: 'OK',
+			headers: this.headers,
+		});
+	}
 
-    async getTenantID(): Promise<any> {
-        const oidResponse = await fetch(`https://login.microsoftonline.com/${this.domain}/.well-known/openid-configuration`);
-        // console.log(this.domain, "OID enrichment:", oidResponse.status);
-        if (!oidResponse.ok) {
-            throw new Error("invalid tenant")
-        }
-        const oidData: any = await oidResponse.json();
-        this.region = oidData.tenant_region_scope;
-        this.tenant_id = (oidData.token_endpoint.match(tenantIdRegex)?.groups || {}).tenant_id || "";
+	async getTenantID(): Promise<any> {
+		const oidResponse = await fetch(`https://login.microsoftonline.com/${this.domain}/.well-known/openid-configuration`, {
+			cf: {
+				cacheEverything: true,
+			},
+		});
+		// console.log(this.domain, "OID enrichment:", oidResponse.status);
+		if (!oidResponse.ok) {
+			throw new Error('invalid tenant');
+		}
+		const oidData: any = await oidResponse.json();
+		this.region = oidData.tenant_region_scope;
+		this.tenant_id = (oidData.token_endpoint.match(tenantIdRegex)?.groups || {}).tenant_id || '';
 
-        return true
-    }
+		return true;
+	}
 
-    async getAllDomains(): Promise<any> {
-        const soapHeaders = {
-            'Content-Type': 'text/xml; charset=utf-8',
-            'User-Agent': 'AutodiscoverClient',
-            'SOAPAction': '"http://schemas.microsoft.com/exchange/2010/Autodiscover/Autodiscover/GetFederationInformation"'
-        };
-        const autodiscoverResponse = await fetch('https://autodiscover-s.outlook.com/autodiscover/autodiscover.svc', {
-            method: 'POST',
-            body: this.soapBody,
-            headers: soapHeaders
-        });
-        // console.log(this.domain, "Autodiscover enrichment:", autodiscoverResponse.status);
-        if (!autodiscoverResponse.ok) {
-            throw new Error("autodiscover: could not get domains from Autodiscover")
-        }
-        const autodiscoverText = await autodiscoverResponse.text();
+	async getAllDomains(): Promise<any> {
+		const soapHeaders = {
+			'Content-Type': 'text/xml; charset=utf-8',
+			'User-Agent': 'AutodiscoverClient',
+			SOAPAction: '"http://schemas.microsoft.com/exchange/2010/Autodiscover/Autodiscover/GetFederationInformation"',
+		};
+		const autodiscoverResponse = await fetch('https://autodiscover-s.outlook.com/autodiscover/autodiscover.svc', {
+			method: 'POST',
+			body: this.soapBody,
+			headers: soapHeaders,
+		});
+		// console.log(this.domain, "Autodiscover enrichment:", autodiscoverResponse.status);
+		if (!autodiscoverResponse.ok) {
+			throw new Error('autodiscover: could not get domains from Autodiscover');
+		}
+		const autodiscoverText = await autodiscoverResponse.text();
 
-        this.domains = [...autodiscoverText.matchAll(domainsRegex)].map(match => match[1]);
-        // We should throw an error if no domains were identified.
-        if (this.domains.length === 0) {
-            throw new Error("invalid tenant")
-        }
-        return true
-    }
+        this.domains = [...autodiscoverText.matchAll(domainsRegex)].map((match) => match[1]);
+		// We should throw an error if no domains were identified.
+		if (this.domains.length === 0) {
+			throw new Error('invalid tenant');
+		}
+		return true;
+	}
 
-    async getBrandInfo(): Promise<any> {
-        const brandResponse = await fetch(`https://login.microsoftonline.com/GetUserRealm.srf?login=nn@${this.domain}`);
-        // console.log(this.domain, "Brand enrichment:", brandResponse.status);
-        if (!brandResponse.ok) {
-            throw new Error("brand enrichment: failed to fetch brand info")
-        }
-        const brandData: any = await brandResponse.json();
-        if (brandData.NameSpaceType === "unknown") {
-            throw new Error("invalid tenant")
-        }
-        this.brand = brandData.FederationBrandName;
-        return true
-    }
+	async getBrandInfo(): Promise<any> {
+		const brandResponse = await fetch(`https://login.microsoftonline.com/GetUserRealm.srf?login=nn@${this.domain}`);
+		// console.log(this.domain, "Brand enrichment:", brandResponse.status);
+		if (!brandResponse.ok) {
+			throw new Error('brand enrichment: failed to fetch brand info');
+		}
+		const brandData: any = await brandResponse.json();
+		if (brandData.NameSpaceType === 'unknown') {
+			throw new Error('invalid tenant');
+		}
+		this.brand = brandData.FederationBrandName;
+		return true;
+	}
 }
 
 async function router(request: Request, ctx: ExecutionContext): Promise<Response> {
-    const recievedURL = new URL(request.url)
-    const receivedPath = recievedURL.pathname
-    const receivedParams = recievedURL.searchParams
-    
-    if (request.method !== "GET") {
-        return new Response("Only GET requests are supported", { status: 400 })
-    }
-    switch (receivedPath) {
-        case '/' || '':
-            var domain = receivedParams.get('domain')
-            return new Response(homeHTML(recievedURL.host, domain), {
-                status: 200,
-                headers: {
-                    "Content-Type": "text/html"
-                }
-            })
-        case '/picocss.min.css':
-            return new Response(picoCSS, {
-                status: 200,
-                headers: {
-                    "Content-Type": "text/css",
-                    "Cache-Control" : "max-age=31536000, public"
-                }
-            })
-        case '/favicon.png':
-            return new Response(favicon(), {
-                headers: {
-                    "Content-Type": "image/png"
-                }
-            })
-        case '/api/' || '/api':
-            var domain = receivedParams.get('domain')
-            if (!domain) {
-                return new Response("You must provide a domain name", {
-                    status: 400,
-                    headers: {
-                        "Content-Type": "text/plain"
-                    }
-                })
-            }
-            // Try cache response, the cache key is the URL.
-            const cache = caches.default;
+	const recievedURL = new URL(request.url);
+	const receivedPath = recievedURL.pathname;
+	const receivedParams = recievedURL.searchParams;
 
-            let response = await cache.match(request.url.toLowerCase())
-            
-            if (!response) {
+	if (request.method !== 'GET') {
+		return new Response('Only GET requests are supported', { status: 400 });
+	}
+	switch (receivedPath) {
+		case '/':
+			var domain = receivedParams.get('domain');
+			return new Response(homeHTML(recievedURL.host, domain), {
+				status: 200,
+				headers: {
+					'Content-Type': 'text/html',
+				},
+			});
+		case '/picocss.min.css':
+			return new Response(picoMin, {
+				status: 200,
+				headers: {
+					'Content-Type': 'text/css',
+					'Cache-Control': 'max-age=31536000, public',
+				},
+			});
+		case '/favicon.png':
+			return new Response(favicon(), {
+				headers: {
+					'Content-Type': 'image/png',
+				},
+			});
+		case '/api/':
+		case '/api':
+			var domain = receivedParams.get('domain');
+			if (!domain) {
+				return new Response('You must provide a domain name', {
+					status: 400,
+					headers: {
+						'Content-Type': 'text/plain',
+					},
+				});
+			}
+			// Try cache response, the cache key is the URL.
+			const cache = caches.default;
 
-                response = await new AADInfo(domain).aadTenantInfo()
+			let response = await cache.match(request.url.toLowerCase());
 
-                ctx.waitUntil(cache.put(request.url.toLowerCase(), response.clone()))
-            }
-            return response
-        case '/robots.txt':
-            return new Response(permissiveRobots, {
-                status: 200,
-                headers: {
-                    "Content-Type": "text/plain"
-                }
-            })
-        default:
-            return new Response(null, {
-                status: 404,
-                statusText: "Not found"
-            })
-    }
+			if (!response) {
+				response = await new AADInfo(domain).aadTenantInfo();
+
+				ctx.waitUntil(cache.put(request.url.toLowerCase(), response.clone()));
+			}
+			return response;
+		case '/robots.txt':
+			return new Response(permissiveRobots, {
+				status: 200,
+				headers: {
+					'Content-Type': 'text/plain',
+				},
+			});
+		default:
+			return new Response(null, {
+				status: 404,
+				statusText: 'Not found',
+			});
+	}
 }
 
 export default {
-    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-        return await router(request, ctx);
-    },
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		return await router(request, ctx);
+	},
 };

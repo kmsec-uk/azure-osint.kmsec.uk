@@ -1,5 +1,7 @@
 # Azure OSINT - a Cloudflare Worker that performs quick Azure Tenant OSINT on a domain
 
+Try it out at [https://azure-osint.kmsec.uk/](https://azure-osint.kmsec.uk/)
+
 This is basically a less functional mirror of
 [AAD Internals' OSINT page](https://aadinternals.com/osint/), but aims to do
 less, faster.
@@ -15,9 +17,13 @@ This tool does not do anything AAD Internals' OSINT page already does. In fact,
 it does *less*. It will not provide additional enrichment on associated domains,
 for example.
 
-Because it does less, it's faster! Requesting `microsoft.com` will take roughly
-half the time (if not less!) with aad.kmtest.workers.dev compared to AAD
-Internals' OSINT page (at the time of testing, 2.6s vs 5.4s).
+This tool also caches API responses with Cloudflare so that frequent requests
+for a specific domain will return cached data.
+
+Because it does less and caches responses, it's faster! Requesting
+`microsoft.com` will take roughly half the time (if not less!) with
+azure-osint.kmsec.uk compared to AAD Internals' OSINT page (at the time of
+testing, 2.6s vs 5.4s).
 
 Benefits over AAD Internals' OSINT page:
 
