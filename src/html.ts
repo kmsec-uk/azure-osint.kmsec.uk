@@ -144,6 +144,18 @@ export function homeHTML(host: string, domain: string | null): string {
                     page</a>, but aims to do less, faster.</p>
             <p>With this tool, you can get the Tenant ID, Branding (brand name, not logo), Region, and associated domains
                 (without the enrichment that AADInternals does) for an Azure Tenant.</p>
+            <article style="background-color:#faeeeb">
+                <header style="background-color:#af291d">
+                    <h4 style="color:aliceblue">Breaking change: Getting tenant domains is no longer possible</h4>
+                </header>
+                <p style="color:#373c44">In May 2025, Microsoft announced <a href="https://techcommunity.microsoft.com/blog/exchange/important-update-to-the-get-federationinformation-cmdlet-in-exchange-online/4410095">
+                restrictions on enumerating tenant domains as an outsider</a>. 
+                As of August 2025, these changes are apparently fully rolled out, effectively breaking this tool. For updates and discussion, 
+                see <a href="https://github.com/kmsec-uk/azure-osint.kmsec.uk/issues/1">Issue #1</a> on GitHub.</p>
+                <p style="color:#373c44">As of August 2025, <a href="https://aadinternals.com/osint/">AAD Internals' OSINT
+                    page</a> still functions as expected (how, I am not sure), so if getting a list of associated tenant domains is important 
+                    to you, please use that tool instead.</p>
+            </article>
             <p>Because it does less, it's faster. Requesting <code>microsoft.com</code> will take roughly half the time (if
                 not less!) with ${host} compared to AAD Internals' OSINT page (at the time of testing, 2.6s vs 5.4s).</p>
             <article>

@@ -6,10 +6,20 @@ This is basically a less functional mirror of
 [AAD Internals' OSINT page](https://aadinternals.com/osint/), but aims to do
 less, faster.
 
+## Important update 15-08-2025: Getting tenant domains is broken
+
+See [issue #1](/../../issues/1). Microsoft rolled out changes that [disable enumerating domains as an outsider](https://techcommunity.microsoft.com/blog/exchange/important-update-to-the-get-federationinformation-cmdlet-in-exchange-online/4410095). This has effectively broken OSINT capabilities.
+
+[AADInternals OSINT page](https://aadinternals.com/osint/) still works although the reason is unclear. The underlying project has an open [issue #117](https://github.com/Gerenios/AADInternals/issues/117) for the same broken feature.
+
+If a feasible workaround emerges, I will implement it.
+
+## Overview
+
 With this tool, you can get a high-level overview about an Azure Tenant:
 
 * Tenant ID
-* Associated domains
+* Associated domains - **BROKEN** - see above note
 * Tenant region
 * Tenant brand name
 
